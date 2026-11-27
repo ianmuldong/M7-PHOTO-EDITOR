@@ -1,0 +1,136 @@
+name: M7 Windows installer
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - claude/m7-studio-editor-rapidraw-s7eniu
+      - main
+    paths:
+      - 'm7/**'
+      - 'packaging/windows/**'
+      - 'src-tauri/src/**'
+      - 'src-tauri/build.rs'
+      - '.github/workflows/m7-windows.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: m7-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 150
+    env:
+      # Faster than the upstream fat-LTO release profile; same code paths.
+      CARGO_PROFILE_RELEASE_LTO: thin
+      CARGO_PROFILE_RELEASE_CODEGEN_UNITS: '16'
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          rustflags: ''
+          cache: false
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          key: m7-windows
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Build RapidRAW UI
+        run: |
+          npm ci
+          npm run build
+
+      - name: Build RapidRAW engine
+        working-directory: src-tauri
+        run: cargo build --release --bin RapidRAW
+
+      - name: Build M7 launcher
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pyinstaller numpy pillow
+          pyinstaller --noconfirm --onedir --console --name "M7 Studio" `
+            --add-data "m7/web;m7/web" --add-data "m7/presets;m7/presets" `
+            --collect-submodules m7 --paths . --distpath dist-app m7/launcher.py
+
+      - name: Assemble app folder
+        shell: pwsh
+        run: |
+          $app = "dist-app/M7 Studio"
+          New-Item -ItemType Directory -Force "$app/engine" | Out-Null
+          Copy-Item src-tauri/target/release/RapidRAW.exe "$app/engine/"
+          Copy-Item -Recurse src-tauri/resources "$app/engine/resources"
+          Copy-Item -Recurse src-tauri/lensfun_db "$app/engine/lensfun_db"
+          Copy-Item LICENSE "$app/LICENSE.txt"
+          Copy-Item packaging/windows/READ-ME-FIRST.txt "$app/"
+          Get-ChildItem -Recurse "$app" | Measure-Object -Property Length -Sum | ForEach-Object { "App size: {0:N0} MB" -f ($_.Sum / 1MB) }
+
+      - name: Fetch public Sony ARW test sample
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force testdata | Out-Null
+          Invoke-WebRequest -Uri "https://media.githubusercontent.com/media/sygslhy/image-io/HEAD/test/images/RAW_SONY_RX100.ARW" -OutFile testdata/RX100.ARW
+          python -c "from PIL import Image; import numpy as np; y,x=np.mgrid[0:1200,0:1800]; a=np.stack([x/1800*200+20,y/1200*180+30,np.full_like(x,90.0)],-1).astype('uint8'); im=Image.fromarray(a); im.save('testdata/synthetic.jpg',quality=95); im.save('testdata/synthetic.png'); im.save('testdata/synthetic.tif')"
+
+      - name: Test engine directly (Windows)
+        shell: pwsh
+        run: |
+          "{}" | Out-File -Encoding ascii adj.json
+          $p = Start-Process -FilePath "dist-app/M7 Studio/engine/RapidRAW.exe" -ArgumentList @("export","testdata/RX100.ARW","--output","out/raw.jpg","--format","jpeg","--adjustments","adj.json","--long-edge","1200") -Wait -PassThru -NoNewWindow
+          "exit code: $($p.ExitCode)"
+          if (!(Test-Path out/raw.jpg)) { throw "engine produced no output" }
+          python -c "from PIL import Image; print('raw render', Image.open('out/raw.jpg').size)"
+
+      - name: Unit and engine tests (Windows)
+        env:
+          M7_RAPIDRAW_BIN: ${{ github.workspace }}\dist-app\M7 Studio\engine\RapidRAW.exe
+        run: python -m unittest -v m7.tests.test_spec m7.tests.test_engine
+
+      - name: Smoke test packaged app (upload, chat edit, undo/redo, full-res export)
+        run: python packaging/windows/smoke_test.py "dist-app/M7 Studio/M7 Studio.exe" testdata/RX100.ARW testdata/synthetic.jpg testdata/synthetic.png testdata/synthetic.tif
+
+      - name: Build installer
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (!(Test-Path $iscc)) { choco install innosetup --no-progress -y; }
+          & $iscc /DAppVersion=0.1.${{ github.run_number }} packaging/windows/m7studio.iss
+          Compress-Archive -Path "dist-app/M7 Studio" -DestinationPath "dist-installer/M7-Studio-Portable-0.1.${{ github.run_number }}.zip"
+          Get-ChildItem dist-installer
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: M7-Studio-Windows
+          path: dist-installer/*
+
+      - name: Publish pre-release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: m7-windows-v0.1.${{ github.run_number }}
+          name: M7 Studio Editor for Windows 0.1.${{ github.run_number }}
+          prerelease: true
+          target_commitish: ${{ github.sha }}
+          files: dist-installer/*
+          body: |
+            **Download `M7-Studio-Setup-0.1.${{ github.run_number }}.exe`**, double-click it, and follow the steps.
+            Then open **M7 Studio Editor** from the Start menu or the desktop.
+
+            Built and smoke-tested automatically on a Windows Server runner (no GPU):
+            upload → natural-language edit → undo/redo → full-resolution JPEG/TIFF export,
+            for a Sony ARW plus JPEG/PNG/TIFF. Not yet tested on a physical Windows PC.
+            The portable `.zip` is the same app without an installer.

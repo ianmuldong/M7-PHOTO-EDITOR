@@ -9,6 +9,7 @@ processed by the local RapidRAW binary; nothing leaves this machine.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import threading
@@ -19,7 +20,7 @@ from pathlib import Path
 
 from . import engine, nl
 from . import spec as m7spec
-from .session import DEFAULT_WORKSPACE, Session
+from .session import DEFAULT_WORKSPACE, Session, sha256
 
 WEB = Path(__file__).resolve().parent / "web"
 LOCK = threading.Lock()  # one render at a time keeps memory predictable
@@ -105,16 +106,29 @@ def make_handler(app: App):
                     name = re.sub(r"[^\w.\-]", "_", name)
                     if Path(name).suffix.lower() not in engine.SUPPORTED_EXTENSIONS:
                         return self._json({"error": f"Unsupported file type {Path(name).suffix}"}, 400)
-                    dest = app.uploads / name
-                    with open(dest, "wb") as f:
+                    tmp = app.uploads / f".incoming-{threading.get_ident()}"
+                    digest = hashlib.sha256()
+                    with open(tmp, "wb") as f:
                         remaining = n
                         while remaining > 0:
                             chunk = self.rfile.read(min(remaining, 1 << 20))
                             if not chunk:
                                 break
                             f.write(chunk)
+                            digest.update(chunk)
                             remaining -= len(chunk)
-                    dest.chmod(0o444)  # the uploaded original is read-only from here on
+                    dest = app.uploads / name
+                    i = 1
+                    while dest.exists():
+                        if sha256(dest) == digest.hexdigest():  # same photo uploaded again
+                            break
+                        dest = app.uploads / f"{Path(name).stem}-{i}{Path(name).suffix}"
+                        i += 1
+                    if dest.exists():
+                        tmp.unlink()
+                    else:
+                        tmp.replace(dest)
+                        dest.chmod(0o444)  # the uploaded original is read-only from here on
                     with LOCK:
                         s = Session.open(dest, app.workspace)
                     return self._json(app.state(s, [f"Opened {name} ({s.size[0]}×{s.size[1]})"]
@@ -149,6 +163,10 @@ def make_handler(app: App):
                     fmt = body.get("format", "jpeg")
                     ext = {"jpeg": ".jpg", "tiff": ".tiff", "png": ".png"}[fmt]
                     out = app.exports / f"{s.source.stem}_M7_step{s.data['cursor']}{ext}"
+                    i = 2
+                    while out.exists():  # never overwrite an earlier export
+                        out = app.exports / f"{s.source.stem}_M7_step{s.data['cursor']}_{i}{ext}"
+                        i += 1
                     with LOCK:
                         res = s.export(out, quality=int(body.get("quality", 95)))
                     from PIL import Image
@@ -166,17 +184,35 @@ def make_handler(app: App):
     return H
 
 
+def serve(workspace: Path, port: int = 7777, open_browser: bool = False):
+    workspace = Path(workspace).expanduser()
+    workspace.mkdir(parents=True, exist_ok=True)
+    engine.find_binary()  # fail fast with a clear message
+    srv = None
+    for p in range(port, port + 20):
+        try:
+            srv = ThreadingHTTPServer(("127.0.0.1", p), make_handler(App(workspace)))
+            port = p
+            break
+        except OSError:
+            continue
+    if srv is None:
+        raise OSError(f"No free port between {port} and {port + 19}")
+    url = f"http://127.0.0.1:{port}"
+    print(f"M7 Studio Editor running at {url}  (workspace: {workspace})")
+    if open_browser:
+        import webbrowser
+        threading.Timer(0.8, lambda: webbrowser.open(url)).start()
+    srv.serve_forever()
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--port", type=int, default=7777)
     ap.add_argument("--workspace", default=str(DEFAULT_WORKSPACE))
+    ap.add_argument("--open", action="store_true", help="open the browser")
     a = ap.parse_args(argv)
-    ws = Path(a.workspace).expanduser()
-    ws.mkdir(parents=True, exist_ok=True)
-    engine.find_binary()  # fail fast with a clear message
-    srv = ThreadingHTTPServer(("127.0.0.1", a.port), make_handler(App(ws)))
-    print(f"M7 Studio Editor running at http://127.0.0.1:{a.port}  (workspace: {ws})")
-    srv.serve_forever()
+    serve(Path(a.workspace), a.port, a.open)
 
 
 if __name__ == "__main__":

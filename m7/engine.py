@@ -6,6 +6,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import time
 from dataclasses import dataclass
@@ -35,11 +36,21 @@ def find_binary() -> Path:
             return p
         raise EngineError(f"M7_RAPIDRAW_BIN points to a missing file: {env}")
     names = ["RapidRAW", "RapidRAW.exe", "rapidraw", "rapid-raw"]
+    candidates = []
+    # Packaged M7 (Windows installer): engine sits next to the launcher.
+    if getattr(sys, "frozen", False):
+        exe_dir = Path(sys.executable).resolve().parent
+        candidates += [exe_dir / "engine" / n for n in names] + [exe_dir / n for n in names]
     for profile in ("release", "debug"):
-        for name in names:
-            p = REPO_ROOT / "src-tauri" / "target" / profile / name
-            if p.is_file():
-                return p
+        candidates += [REPO_ROOT / "src-tauri" / "target" / profile / n for n in names]
+    if os.name == "nt":
+        for var in ("LOCALAPPDATA", "ProgramFiles", "ProgramFiles(x86)"):
+            base = os.environ.get(var)
+            if base:
+                candidates += [Path(base) / d / "RapidRAW.exe" for d in ("RapidRAW", "Programs/RapidRAW")]
+    for p in candidates:
+        if p.is_file():
+            return p
     for name in names:
         found = shutil.which(name)
         if found:
@@ -113,10 +124,14 @@ def render(
         env = dict(os.environ)
         env.setdefault("RUST_LOG", "warn")
         start = time.time()
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, env=env)
+        extra = {"creationflags": 0x08000000} if os.name == "nt" else {}  # CREATE_NO_WINDOW
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, env=env,
+                              encoding="utf-8", errors="replace", **extra)
         elapsed = time.time() - start
         log = (proc.stdout or "") + (proc.stderr or "")
-        if proc.returncode != 0 or "completed successfully" not in log or not tmp_out.exists():
+        # Judge success by exit code + output file (a GUI-subsystem build on
+        # Windows may not forward console text).
+        if proc.returncode != 0 or "export failed" in log.lower() or not tmp_out.exists():
             raise EngineError(f"RapidRAW export failed (exit {proc.returncode}):\n{log[-4000:]}")
         shutil.move(str(tmp_out), str(output))
     return RenderResult(output=output, seconds=elapsed, log=log)

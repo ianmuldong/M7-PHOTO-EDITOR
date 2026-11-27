@@ -45,3 +45,10 @@ src-tauri/libs/
 
 # bench/replay.js result dumps
 bench/out/
+
+# M7 packaging outputs
+dist-app/
+dist-installer/
+testdata/
+build/
+*.spec
