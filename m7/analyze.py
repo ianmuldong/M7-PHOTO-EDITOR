@@ -72,12 +72,16 @@ def describe(s: dict) -> list[str]:
 def suggest(s: dict) -> dict:
     """Conservative auto-correction suggestion (RapidRAW units)."""
     adj: dict = {}
-    target = 0.45
     m = max(s["medianLuminance"], 0.02)
-    if abs(m - target) > 0.07:
+    # Scene-aware target: genuinely low-key scenes (night, dusk, dark gyms)
+    # should stay darker than mid-grey; bright scenes may stay bright.
+    target = 0.42 if 0.25 <= m <= 0.65 else (0.32 if m < 0.25 else 0.55)
+    if abs(m - target) > 0.06:
         # sRGB median -> stops, damped so we never overshoot.
-        stops = np.log2((target / m) ** 2.2) * 0.6
-        adj["exposure"] = round(float(np.clip(stops, -1.5, 1.5)), 2)
+        stops = np.log2((target / m) ** 2.2) * 0.5
+        # Don't brighten into clipping.
+        hi = 1.0 if s["p99"] < 0.9 else 0.5
+        adj["exposure"] = round(float(np.clip(stops, -1.0, hi)), 2)
     if s["clippedHighlightsPct"] > 1.0:
         adj["highlights"] = -min(60, round(10 + s["clippedHighlightsPct"] * 5))
     if s["crushedShadowsPct"] > 2.0:

@@ -130,14 +130,11 @@ def make_handler(app: App):
                     if low in ("redo", "redo that"):
                         ok = s.redo()
                         return self._json(app.state(s, ["redone" if ok else "nothing to redo"]))
-                    change, notes = nl.interpret(text, s.data.get("analysis"))
-                    actionable = any(k in change for k in ("add", "set", "presets", "crop", "straighten",
-                                                           "lensCorrection", "masks", "reset"))
-                    if not actionable:
-                        st = app.state(s, notes + ["No change made — try e.g. 'warmer', 'more contrast', "
-                                                   "'golden hour at 70%', 'crop 4:5'."])
-                        return self._json(st)
-                    s.commit(nl.apply_change(s.spec, change), text)
+                    with LOCK:
+                        changed, notes = s.say(text)
+                    if not changed:
+                        notes = notes + ["No change made — try e.g. 'warmer', 'more contrast', "
+                                         "'golden hour at 70%', 'crop 4:5'."]
                     return self._json(app.state(s, notes))
                 if u.path == "/api/apply":
                     s.commit(nl.apply_change(s.spec, body["change"]), body.get("note", "manual change"))

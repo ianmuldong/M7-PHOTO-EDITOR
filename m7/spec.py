@@ -9,7 +9,8 @@ An M7 edit spec is a small, human/AI-writable JSON document:
       "crop": {"aspect": "4:5"},             # or {"x":0.1,"y":0,"w":0.8,"h":1}
       "straighten": -1.5,                    # degrees, positive = clockwise
       "lensCorrection": "auto",              # or "off"
-      "masks": [ {"type": "radial", ...}, {"type": "subject", ...} ]
+      "masks": [ {"type": "radial", ...}, {"type": "linear", "fromY": 0, "toY": 0.4, ...},
+                 {"type": "subject", ...} ]
     }
 
 ``adjustments`` use RapidRAW's own key names and slider units (see
@@ -295,13 +296,18 @@ def _compile_mask(m: dict, width: int, height: int, index: int) -> dict:
         }
         sub = {"type": "radial", "parameters": params}
     elif mtype == "linear":
-        params = {
-            "startX": float(m.get("startX", 0.5)) * width,
-            "startY": float(m.get("startY", 0.0)) * height,
-            "endX": float(m.get("endX", 0.5)) * width,
-            "endY": float(m.get("endY", 0.5)) * height,
-            "range": float(m.get("range", 0.1)) * long_side,
-        }
+        # Graduated filter: full effect at (fromX, fromY), none at (toX, toY).
+        # RapidRAW's linear mask is a boundary line (start->end) with a
+        # perpendicular falloff of +-range; convert to that representation.
+        fx, fy = float(m.get("fromX", 0.5)) * width, float(m.get("fromY", 0.0)) * height
+        tx, ty = float(m.get("toX", 0.5)) * width, float(m.get("toY", 0.5)) * height
+        gx, gy = tx - fx, ty - fy
+        length = math.hypot(gx, gy)
+        if length < 1:
+            raise SpecError("Linear mask from/to points are too close")
+        mx, my = (fx + tx) / 2, (fy + ty) / 2
+        params = {"startX": mx, "startY": my, "endX": mx + gy, "endY": my - gx,
+                  "range": length / 2}
         sub = {"type": "linear", "parameters": params}
     elif mtype in ("subject", "background"):
         # RapidRAW's AI foreground segmentation; models download on first use.

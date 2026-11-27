@@ -34,7 +34,7 @@ the M7 CLI.
   "masks": [
     {"type": "radial", "centerX": 0.48, "centerY": 0.4, "radiusX": 0.2, "radiusY": 0.3,
      "feather": 0.7, "adjustments": {"exposure": 0.3}},
-    {"type": "linear", "startX": 0.5, "startY": 0, "endX": 0.5, "endY": 0.4, "range": 0.1,
+    {"type": "linear", "fromX": 0.5, "fromY": 0, "toX": 0.5, "toY": 0.4,
      "adjustments": {"exposure": -0.4}},
     {"type": "subject", "adjustments": {"exposure": 0.25}},
     {"type": "background", "adjustments": {"saturation": -30}}
@@ -44,7 +44,7 @@ the M7 CLI.
 
 - `add` is **relative** to the current values, including the values the preset sets. `set` is **absolute**.
 - `presets` replaces the current preset stack.
-- Mask coordinates are 0–1 fractions of the developed image. `range` is a fraction of the long edge.
+- Mask coordinates are 0–1 fractions of the developed image. A linear mask is a graduated filter: full effect at `from`, none at `to`.
 - Adjustment keys and their ranges are the `RANGES` table in `m7/spec.py`. They are RapidRAW's own slider units.
 - To reset everything: `{"reset": true}`.
 

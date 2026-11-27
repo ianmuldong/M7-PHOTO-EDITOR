@@ -141,12 +141,44 @@ class Session:
         return [{"step": i, "note": e["note"], "current": i == self.data["cursor"]}
                 for i, e in enumerate(self.data["history"])]
 
+    def say(self, text: str) -> tuple[bool, list[str]]:
+        """Interpret natural language, commit it, return (changed, notes).
+
+        "auto" corrections are measured on a render of the edit *so far*
+        (preset + other requested changes), not on the untouched original,
+        so they never double up with what a preset already does.
+        """
+        from . import nl
+        change, notes = nl.interpret(text, None)
+        wants_auto = bool(change.pop("auto", False))
+        actionable = any(k in change for k in ("add", "set", "presets", "crop", "straighten",
+                                               "lensCorrection", "masks", "reset"))
+        if not actionable and not wants_auto:
+            return False, notes
+        spec = nl.apply_change(self.spec, change)
+        if wants_auto:
+            probe = self.folder / "previews" / "auto-probe.jpg"
+            engine.render(self.source, m7spec.compile_spec(spec, *self.size), probe, fmt="jpeg",
+                          quality=85, long_edge=800, keep_metadata=False)
+            fix = analysis.suggest(analysis.analyze(probe))
+            probe.unlink(missing_ok=True)
+            if fix:
+                spec = nl.apply_change(spec, {"add": fix})
+            notes.append(f"auto adjustments measured on the edit: {fix or 'none needed'}")
+        self.commit(spec, text)
+        return True, notes
+
     # ------------------------------------------------------------ rendering
     def rapidraw_adjustments(self, spec: dict | None = None) -> dict:
         return m7spec.compile_spec(spec or self.spec, *self.size)
 
+    def _key(self) -> str:
+        blob = json.dumps(self.rapidraw_adjustments(), sort_keys=True).encode()
+        return hashlib.sha256(blob).hexdigest()[:12]
+
     def render_preview(self) -> Path:
-        out = self.folder / "previews" / f"step-{self.data['cursor']:03d}.jpg"
+        # Keyed by the compiled adjustments, so undo-then-edit never shows a stale image.
+        out = self.folder / "previews" / f"step-{self.data['cursor']:03d}-{self._key()}.jpg"
         if not out.exists():
             engine.render(self.source, self.rapidraw_adjustments(), out, fmt="jpeg",
                           quality=90, long_edge=PREVIEW_EDGE, keep_metadata=False)
@@ -155,7 +187,7 @@ class Session:
     def compare(self) -> Path:
         from .preview import before_after
         after = self.render_preview()
-        out = self.folder / "previews" / f"compare-{self.data['cursor']:03d}.jpg"
+        out = self.folder / "previews" / f"compare-{self.data['cursor']:03d}-{self._key()}.jpg"
         return before_after(self.folder / "before.jpg", after, out)
 
     def export(self, output: Path, fmt: str | None = None, quality: int = 95,

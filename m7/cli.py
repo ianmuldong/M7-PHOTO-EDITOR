@@ -90,12 +90,10 @@ def cmd_open(a):
 
 def cmd_say(a):
     s = _session(a.photo, a.workspace)
-    change, notes = nl.interpret(a.text, s.data.get("analysis"))
-    if not any(k in change for k in ("add", "set", "presets", "crop", "straighten",
-                                       "lensCorrection", "masks", "reset")):
+    changed, notes = s.say(a.text)
+    if not changed:
         print(json.dumps({"interpreted": notes, "error": "Nothing to change."}, indent=2))
         return 1
-    s.commit(nl.apply_change(s.spec, change), a.text)
     _report(s, notes, render=not a.no_render)
 
 
@@ -153,11 +151,15 @@ def cmd_batch(a):
     out_dir.mkdir(parents=True, exist_ok=True)
     spec = _load_spec(a)
     results = []
+    stems = [f.stem.lower() for f in files]
     for f in files:
         try:
             w, h = _dims(f, Path(a.workspace) if a.workspace else DEFAULT_WORKSPACE)
             adj = m7spec.compile_spec(spec, w, h)
-            target = out_dir / (f.stem + {"jpeg": ".jpg", "tiff": ".tiff", "png": ".png"}[a.format])
+            stem = f.stem if stems.count(f.stem.lower()) == 1 else f"{f.stem}_{f.suffix[1:]}"
+            target = out_dir / (stem + "_M7" + {"jpeg": ".jpg", "tiff": ".tiff", "png": ".png"}[a.format])
+            if target.exists():
+                raise engine.EngineError(f"{target.name} already exists; not overwriting")
             r = engine.render(f, adj, target, fmt=a.format, quality=a.quality, tiff_bit_depth=a.bit_depth)
             results.append({"file": f.name, "output": str(r.output), "seconds": round(r.seconds, 1)})
         except Exception as e:  # keep going; report per file

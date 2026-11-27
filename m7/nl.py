@@ -216,8 +216,8 @@ def interpret(text: str, analysis: dict | None = None) -> tuple[dict, list[str]]
         if sky and (darken or re.search(r"\b(recover|deepen|richer|bluer|more blue)\b", clause)):
             adj = {"exposure": round(-0.4 * k, 2), "highlights": -20, "saturation": 10}
             change.setdefault("masks", []).append({
-                "type": "linear", "name": "M7 sky gradient", "startX": 0.5, "startY": 0.0,
-                "endX": 0.5, "endY": 0.45, "range": 0.12, "adjustments": adj})
+                "type": "linear", "name": "M7 sky gradient", "fromX": 0.5, "fromY": 0.0,
+                "toX": 0.5, "toY": 0.5, "adjustments": adj})
             notes.append("graduated sky filter")
             continue
         if re.search(r"\b(spotlight|centre|center)\b", clause) and (brighten or darken):
@@ -256,6 +256,7 @@ def interpret(text: str, analysis: dict | None = None) -> tuple[dict, list[str]]
     if change.get("auto") and analysis:
         for key, val in suggest(analysis).items():
             _add(change, [key], val)
+        change["auto"] = False  # already folded in
     return change, notes
 
 

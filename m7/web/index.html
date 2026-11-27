@@ -76,7 +76,15 @@ function render(st) {
     <div id="handle"></div><span class="tag" style="left:8px">BEFORE</span><span class="tag" style="right:8px">AFTER</span></div>`;
   const cmp = document.getElementById('compare'), wrap = document.getElementById('afterWrap'), h = document.getElementById('handle'), a = document.getElementById('a'), b = document.getElementById('b');
   const set = (f) => { wrap.style.clipPath = `inset(0 0 0 ${f*100}%)`; h.style.left = (f*100) + '%'; };
-  b.onload = () => { a.style.width = b.clientWidth + 'px'; a.style.height = b.clientHeight + 'px'; set(0.5); };
+  const fit = () => {
+    if (!b.naturalWidth || !a.naturalWidth) return;
+    const ra = a.naturalWidth / a.naturalHeight, rb = b.naturalWidth / b.naturalHeight;
+    if (Math.abs(ra - rb) / rb > 0.01) {  // cropped: a wipe would distort, show side by side
+      stage.innerHTML = `<div id="compare"><img src="${st.compare}"></div>`; return;
+    }
+    a.style.width = b.clientWidth + 'px'; a.style.height = b.clientHeight + 'px'; set(0.5);
+  };
+  b.onload = fit; a.onload = fit;
   let drag = false; h.onpointerdown = e => { drag = true; h.setPointerCapture(e.pointerId); };
   h.onpointerup = () => drag = false;
   h.onpointermove = e => { if (!drag) return; const r = cmp.getBoundingClientRect(); set(Math.min(1, Math.max(0, (e.clientX - r.left) / r.width))); };
