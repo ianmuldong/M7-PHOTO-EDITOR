@@ -1,0 +1,25 @@
+{
+  "title": "Natural professional portrait",
+  "description": "Gentle, true-to-life portrait finish: soft highlight roll-off, open shadows, accurate warm skin, no skin smoothing or reshaping.",
+  "adjustments": {
+    "temperature": 3,
+    "contrast": 5,
+    "highlights": -18,
+    "shadows": 12,
+    "whites": 4,
+    "blacks": -4,
+    "clarity": -4,
+    "vibrance": 10,
+    "sharpness": 18,
+    "lumaNoiseReduction": 8,
+    "hsl": {
+      "oranges": {
+        "saturation": -6,
+        "luminance": 8
+      },
+      "reds": {
+        "saturation": -5
+      }
+    }
+  }
+}

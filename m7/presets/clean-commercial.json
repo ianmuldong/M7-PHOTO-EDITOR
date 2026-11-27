@@ -1,0 +1,16 @@
+{
+  "title": "Clean commercial photography",
+  "description": "Bright, neutral and accurate: clean whites, gentle contrast and crisp detail for product, brand and corporate work.",
+  "adjustments": {
+    "exposure": 0.15,
+    "contrast": 10,
+    "highlights": -20,
+    "shadows": 15,
+    "whites": 15,
+    "blacks": -5,
+    "clarity": 10,
+    "vibrance": 8,
+    "sharpness": 28,
+    "lumaNoiseReduction": 10
+  }
+}

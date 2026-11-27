@@ -1,0 +1,65 @@
+{
+  "title": "Nike-inspired commercial",
+  "description": "Crisp, bold, high-impact commercial look: deep clean blacks, bright whites, strong local contrast. Inspired by athletic advertising, uses no brand assets.",
+  "adjustments": {
+    "contrast": 35,
+    "highlights": -20,
+    "shadows": 12,
+    "whites": 15,
+    "blacks": -28,
+    "clarity": 25,
+    "structure": 15,
+    "vibrance": 15,
+    "saturation": 5,
+    "dehaze": 5,
+    "sharpness": 40,
+    "vignetteAmount": -10,
+    "curves": {
+      "luma": [
+        {
+          "x": 0,
+          "y": 0
+        },
+        {
+          "x": 64,
+          "y": 52
+        },
+        {
+          "x": 128,
+          "y": 128
+        },
+        {
+          "x": 192,
+          "y": 202
+        },
+        {
+          "x": 255,
+          "y": 255
+        }
+      ]
+    },
+    "colorGrading": {
+      "highlights": {
+        "hue": 45,
+        "saturation": 6,
+        "luminance": 0
+      },
+      "shadows": {
+        "hue": 220,
+        "saturation": 6,
+        "luminance": 0
+      },
+      "blending": 50,
+      "balance": 0
+    },
+    "hsl": {
+      "reds": {
+        "saturation": 8
+      },
+      "oranges": {
+        "saturation": 0,
+        "luminance": 4
+      }
+    }
+  }
+}

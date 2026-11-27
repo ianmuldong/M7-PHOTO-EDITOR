@@ -28,6 +28,7 @@ pub struct HeadlessExportSession {
     pub adjustments_override: Option<String>,
     pub export_original: Option<OriginalExportOptions>,
     pub on_conflict: Option<ConflictAction>,
+    pub long_edge: Option<u32>,
 }
 
 #[derive(Clone, Debug)]
@@ -81,6 +82,7 @@ pub fn parse_launch_args(args: &[String]) -> LaunchRequest {
         let mut original_crop = true;
         let mut original_keep_exposure = false;
         let mut on_conflict = None;
+        let mut long_edge = None;
 
         if let Some(src) = iter.next()
             && !src.starts_with('-')
@@ -168,6 +170,20 @@ pub fn parse_launch_args(args: &[String]) -> LaunchRequest {
                     };
                     hdr_headroom = stops;
                 }
+                "--long-edge" => {
+                    let Some(value) = iter.next() else {
+                        return LaunchRequest::InvalidHeadless(
+                            "Missing value for --long-edge; expected a pixel count.".to_string(),
+                        );
+                    };
+                    let Some(px) = value.parse::<u32>().ok().filter(|px| *px > 0) else {
+                        return LaunchRequest::InvalidHeadless(format!(
+                            "Invalid --long-edge '{}'; expected a positive pixel count.",
+                            value
+                        ));
+                    };
+                    long_edge = Some(px);
+                }
                 "--keep-metadata" => keep_metadata = true,
                 "--export-original" => export_original = true,
                 "--original-no-crop" => original_crop = false,
@@ -220,6 +236,7 @@ pub fn parse_launch_args(args: &[String]) -> LaunchRequest {
                 keep_exposure: original_keep_exposure,
             }),
             on_conflict,
+            long_edge,
         });
     }
 

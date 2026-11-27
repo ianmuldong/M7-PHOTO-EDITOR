@@ -1086,7 +1086,11 @@ pub async fn run_headless_export(
         color_space: session.color_space,
         hdr: session.hdr,
         hdr_headroom: session.hdr_headroom,
-        resize: None,
+        resize: session.long_edge.map(|value| crate::export::settings::ResizeOptions {
+            mode: crate::export::settings::ResizeMode::LongEdge,
+            value,
+            dont_enlarge: true,
+        }),
         border: None,
         pad: None,
         keep_metadata: session.keep_metadata,

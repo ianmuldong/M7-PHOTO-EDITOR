@@ -1,0 +1,29 @@
+{
+  "title": "Professional indoor volleyball",
+  "description": "Corrects warm/yellow gym lighting, recovers glare on the court floor, lifts players out of the shadows and cleans up high-ISO noise.",
+  "adjustments": {
+    "exposure": 0.3,
+    "temperature": -10,
+    "tint": 4,
+    "contrast": 12,
+    "highlights": -35,
+    "shadows": 28,
+    "whites": 5,
+    "blacks": -8,
+    "clarity": 15,
+    "vibrance": 10,
+    "lumaNoiseReduction": 20,
+    "colorNoiseReduction": 30,
+    "sharpness": 30,
+    "hsl": {
+      "yellows": {
+        "saturation": -18,
+        "luminance": -5
+      },
+      "oranges": {
+        "saturation": -4,
+        "luminance": 6
+      }
+    }
+  }
+}

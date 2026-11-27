@@ -1,0 +1,46 @@
+{
+  "title": "Golden-hour cinematic",
+  "description": "Warm, glowing sunset grade with amber highlights, soft contrast and muted blues.",
+  "adjustments": {
+    "temperature": 20,
+    "tint": 5,
+    "contrast": 15,
+    "highlights": -30,
+    "shadows": 15,
+    "blacks": -6,
+    "vibrance": 15,
+    "glowAmount": 10,
+    "vignetteAmount": -15,
+    "colorGrading": {
+      "highlights": {
+        "hue": 40,
+        "saturation": 25,
+        "luminance": 0
+      },
+      "midtones": {
+        "hue": 32,
+        "saturation": 8,
+        "luminance": 0
+      },
+      "shadows": {
+        "hue": 20,
+        "saturation": 8,
+        "luminance": 0
+      },
+      "blending": 50,
+      "balance": 0
+    },
+    "hsl": {
+      "oranges": {
+        "saturation": 8
+      },
+      "yellows": {
+        "hue": -10,
+        "saturation": 10
+      },
+      "blues": {
+        "saturation": -20
+      }
+    }
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "title": "High-contrast monochrome",
+  "description": "Bold black-and-white with deep blacks, bright whites, strong structure and fine grain.",
+  "adjustments": {
+    "monochromeEnabled": true,
+    "contrast": 45,
+    "highlights": -20,
+    "shadows": -5,
+    "whites": 20,
+    "blacks": -30,
+    "clarity": 30,
+    "structure": 20,
+    "grainAmount": 15,
+    "sharpness": 30,
+    "vignetteAmount": -15,
+    "curves": {
+      "luma": [
+        {
+          "x": 0,
+          "y": 0
+        },
+        {
+          "x": 64,
+          "y": 50
+        },
+        {
+          "x": 128,
+          "y": 128
+        },
+        {
+          "x": 192,
+          "y": 204
+        },
+        {
+          "x": 255,
+          "y": 255
+        }
+      ]
+    },
+    "monochromeMix": {
+      "reds": 10,
+      "oranges": 15,
+      "yellows": 5,
+      "blues": -20,
+      "aquas": -10
+    }
+  }
+}
