@@ -24,7 +24,6 @@ from __future__ import annotations
 import copy
 import json
 import math
-import uuid
 from pathlib import Path
 
 PRESET_DIR = Path(__file__).resolve().parent / "presets"
@@ -319,10 +318,11 @@ def _compile_mask(m: dict, width: int, height: int, index: int) -> dict:
     else:
         raise SpecError(f"Unknown mask type {mtype!r}; use radial, linear, subject, background, sky")
     invert = bool(m.get("invert", False)) ^ (mtype == "background")
-    sub.update({"id": str(uuid.uuid4()), "visible": True, "invert": False,
+    # Deterministic ids keep compiled output (and preview cache keys) stable.
+    sub.update({"id": f"m7-mask-{index}-0", "visible": True, "invert": False,
                 "opacity": 100.0, "mode": "additive"})
     return {
-        "id": str(uuid.uuid4()),
+        "id": f"m7-mask-{index}",
         "name": m.get("name", f"M7 mask {index + 1}"),
         "visible": True,
         "invert": invert,

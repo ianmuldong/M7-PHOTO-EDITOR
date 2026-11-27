@@ -102,18 +102,22 @@ The workspace (sessions, uploads, exports) is `~/M7Studio`.
 
 ### Inside a Claude conversation (Claude Code)
 
-1. Attach a photo to the conversation (or put it in the repository folder).
+1. Attach a photo to the conversation.
 2. Describe the look you want.
-3. Claude runs `m7 open`, writes a structured change, runs `m7 apply`, and sends you the
-   before/after preview.
+3. Claude runs `m7 open` (analysis), writes the edit spec, applies it with `m7 set-spec` or
+   `m7 apply`, and checks the before/after preview.
 4. Ask for further changes. Each one is a history step, and you can undo or redo.
-5. Claude runs `m7 export` and sends the **full-resolution** file back into the chat.
+5. Claude runs `m7 export` and sends the finished JPEG and 16-bit TIFF back into the chat,
+   along with the exact edit parameters.
 
-Verified so far: the processing and the delivery back to you. A 5472×3648 JPEG
-(10.6 MB, with EXIF) was sent into the chat. Not yet verified: where an attached photo
-lands inside the session (the expected folder is `/mnt/user-data/uploads`) and the
-upload size limit for large RAW files. Very large outputs such as 60+ MB 16-bit TIFFs
-may be impractical to send through chat. Use the Windows app for those.
+**Tested with a real upload:** an attached volleyball photo was graded, masked, exported and
+returned as a JPEG plus a 16-bit TIFF, together with its parameters.
+
+**Important limitation:** chat attachments reach the session **downscaled with their camera
+metadata removed**. The test photo arrived as a 1502×2000 JPEG. "Full resolution" in chat
+therefore means the resolution that was received. For true camera-resolution edits, and for
+RAW/ARW files, use the Windows app, or add the original files to the repository and ask
+Claude to edit them there.
 
 ### CLI
 
@@ -219,6 +223,7 @@ cores, no GPU. The test images were real public Sony RAW samples: a DSC-RX100
 | Undo / redo / history                                          | ✅ tested     | CLI and web UI                                                                                                                        |
 | Before/after preview                                           | ✅ tested     | wipe slider; side by side when cropped                                                                                                |
 | Batch processing                                               | ✅ tested     | 3 files, mixed formats                                                                                                                |
+| In-conversation edit (Claude Code)                             | ✅ tested     | real attached photo → graded, masked, exported JPEG + 16-bit TIFF returned in chat (attachments arrive downscaled, without EXIF)      |
 | Local chat web app                                             | ✅ tested     | Playwright: upload ARW → chat edits → undo/redo → full-res download                                                                   |
 | Desktop RapidRAW GUI                                           | ➖ unchanged  | not run in the container (no display)                                                                                                 |
 | Windows / macOS                                                | ➖ not tested | the M7 Python code is cross-platform; engine builds follow RapidRAW's normal process                                                  |
