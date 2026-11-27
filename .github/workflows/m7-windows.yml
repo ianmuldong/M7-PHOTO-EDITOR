@@ -256,8 +256,9 @@ jobs:
           prerelease: true
           body_path: release-notes.md
 
-      - name: Fail the check if the JPEG tests failed
-        if: always() && (steps.jpeg_engine.outcome != 'success' || steps.jpeg_app.outcome != 'success')
+      - name: Fail the check if any test failed
+        # The release is already published; this keeps the PR check honest.
+        if: always() && (steps.jpeg_engine.outcome != 'success' || steps.jpeg_app.outcome != 'success' || steps.unit.outcome != 'success' || steps.arw_engine.outcome != 'success' || steps.arw_app.outcome != 'success')
         run: |
-          echo "JPEG tests on the GPU-less runner did not pass (see the table in the release notes)."
+          echo "Some Windows tests did not pass (see the table in the release notes)."
           exit 1

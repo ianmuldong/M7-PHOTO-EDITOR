@@ -19,9 +19,13 @@ class DiagnosticsTest(unittest.TestCase):
     def test_failure_report_written(self):
         with tempfile.TemporaryDirectory() as d:
             diagnostics.setup_logging(Path(d))
-            p = diagnostics.record_failure(Path("x.ARW"), ["RapidRAW", "export"], 1, "boom")
-            self.assertTrue(p.is_file())
-            self.assertIn("boom", p.read_text(encoding="utf-8"))
+            try:
+                p = diagnostics.record_failure(Path("x.ARW"), ["RapidRAW", "export"], 1, "boom")
+                self.assertTrue(p.is_file())
+                self.assertIn("boom", p.read_text(encoding="utf-8"))
+                self.assertTrue((Path(d) / "logs" / "m7.log").is_file())
+            finally:
+                diagnostics.close_logging()
 
 
 if __name__ == "__main__":

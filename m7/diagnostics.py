@@ -24,6 +24,7 @@ from pathlib import Path
 
 log = logging.getLogger("m7")
 _LOG_DIR: Path | None = None
+_HANDLER: logging.Handler | None = None
 try:  # written by the Windows build
     from ._version import VERSION
 except ImportError:
@@ -32,12 +33,14 @@ except ImportError:
 
 def setup_logging(workspace: Path) -> Path:
     """Send the ``m7`` logger to ``<workspace>/logs/m7.log`` (idempotent)."""
-    global _LOG_DIR
+    global _LOG_DIR, _HANDLER
     d = Path(workspace).expanduser() / "logs"
     d.mkdir(parents=True, exist_ok=True)
     if _LOG_DIR != d:
+        close_logging()
         h = logging.handlers.RotatingFileHandler(d / "m7.log", maxBytes=2_000_000, backupCount=3,
                                                  encoding="utf-8")
+        _HANDLER = h
         h.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
         log.addHandler(h)
         log.setLevel(logging.INFO)
@@ -45,6 +48,16 @@ def setup_logging(workspace: Path) -> Path:
         log.info("M7 Studio Editor %s on %s, Python %s", VERSION, platform.platform(),
                  platform.python_version())
     return d
+
+
+def close_logging():
+    """Close the log file (Windows cannot delete or move a file that is open)."""
+    global _LOG_DIR, _HANDLER
+    if _HANDLER is not None:
+        log.removeHandler(_HANDLER)
+        _HANDLER.close()
+    _HANDLER = None
+    _LOG_DIR = None
 
 
 def log_dir() -> Path | None:
