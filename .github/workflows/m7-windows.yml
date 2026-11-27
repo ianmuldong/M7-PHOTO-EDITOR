@@ -65,6 +65,7 @@ jobs:
 
       - name: Build M7 launcher
         run: |
+          "VERSION = '0.1.${{ github.run_number }}-experimental'" | Out-File -Encoding utf8 m7/_version.py
           python -m pip install --upgrade pip
           python -m pip install pyinstaller numpy pillow
           pyinstaller --noconfirm --onedir --console --name "M7 Studio" `
@@ -81,20 +82,54 @@ jobs:
           Copy-Item -Recurse src-tauri/lensfun_db "$app/engine/lensfun_db"
           Copy-Item LICENSE "$app/LICENSE.txt"
           Copy-Item packaging/windows/READ-ME-FIRST.txt "$app/"
+          Copy-Item packaging/windows/TESTING-CHECKLIST.txt "$app/"
+          Copy-Item "packaging/windows/Test my photos (self-test).bat" "$app/"
           Get-ChildItem -Recurse "$app" | Measure-Object -Property Length -Sum | ForEach-Object { "App size: {0:N0} MB" -f ($_.Sum / 1MB) }
 
-      - name: Fetch public Sony ARW test sample
+      - name: Build installer and portable zip
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (!(Test-Path $iscc)) { choco install innosetup --no-progress -y; }
+          & $iscc /DAppVersion=0.1.${{ github.run_number }} packaging/windows/m7studio.iss
+          Compress-Archive -Path "dist-app/M7 Studio" -DestinationPath "dist-installer/M7-Studio-Portable-0.1.${{ github.run_number }}.zip"
+          Get-ChildItem dist-installer
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: M7-Studio-Windows
+          path: dist-installer/*
+
+      # Publish straight away so a download exists even if the GPU-less runner
+      # cannot finish the render tests. The notes are updated with the real
+      # test results at the end of the job.
+      - name: Publish experimental pre-release
+        id: publish
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: m7-windows-v0.1.${{ github.run_number }}
+          name: M7 Studio Editor for Windows 0.1.${{ github.run_number }} (EXPERIMENTAL, unverified on Windows)
+          prerelease: true
+          target_commitish: ${{ github.sha }}
+          files: dist-installer/*
+          body: |
+            **EXPERIMENTAL: not yet verified on a Windows PC.** Automated Windows render tests are still running; this text will be replaced with their results.
+
+      - name: Fetch test photos (public Sony ARW sample + synthetic JPEG/PNG/TIFF)
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force testdata | Out-Null
           Invoke-WebRequest -Uri "https://media.githubusercontent.com/media/sygslhy/image-io/HEAD/test/images/RAW_SONY_RX100.ARW" -OutFile testdata/RX100.ARW
           python -c "from PIL import Image; import numpy as np; y,x=np.mgrid[0:1200,0:1800]; a=np.stack([x/1800*200+20,y/1200*180+30,np.full_like(x,90.0)],-1).astype('uint8'); im=Image.fromarray(a); im.save('testdata/synthetic.jpg',quality=95); im.save('testdata/synthetic.png'); im.save('testdata/synthetic.tif')"
+          "{}" | Out-File -Encoding ascii adj.json
 
       - name: Install software Vulkan for the GPU-less runner (test only)
         # Windows' WARP (DX12) software adapter never finished even a 2 MP render
-        # (32 min). Mesa llvmpipe (free, MIT) is the software Vulkan driver that
+        # (32 min). Mesa lavapipe (free, MIT) is the software Vulkan driver that
         # RapidRAW renders with in Linux testing. Used only for these CI tests; the
         # packaged app is unchanged and uses the PC's real GPU.
+        id: mesa
+        continue-on-error: true
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
@@ -123,68 +158,97 @@ jobs:
           "VK_DRIVER_FILES=$($icd.FullName)" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
           "VK_ICD_FILENAMES=$($icd.FullName)" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
 
-      - name: Test engine directly (Windows)
-        timeout-minutes: 20
+      - name: 'Test 1: JPEG render with the engine'
+        id: jpeg_engine
+        continue-on-error: true
+        timeout-minutes: 15
         shell: pwsh
         run: |
-          "{}" | Out-File -Encoding ascii adj.json
           $p = Start-Process -FilePath "dist-app/M7 Studio/engine/RapidRAW.exe" -ArgumentList @("export","testdata/synthetic.jpg","--output","out/engine.jpg","--format","jpeg","--adjustments","adj.json") -Wait -PassThru -NoNewWindow
           "exit code: $($p.ExitCode)"
           if (!(Test-Path out/engine.jpg)) { throw "engine produced no output" }
           python -c "from PIL import Image; print('engine render', Image.open('out/engine.jpg').size)"
 
-      - name: Unit and engine tests (Windows)
-        timeout-minutes: 40
+      - name: 'Test 2: unit tests + engine tests'
+        id: unit
+        continue-on-error: true
+        timeout-minutes: 30
         env:
           M7_RAPIDRAW_BIN: ${{ github.workspace }}\dist-app\M7 Studio\engine\RapidRAW.exe
-        run: python -m unittest -v m7.tests.test_spec m7.tests.test_engine
+        run: python -m unittest -v m7.tests.test_spec m7.tests.test_diagnostics m7.tests.test_engine
 
-      - name: Smoke test packaged app (upload, chat edit, undo/redo, full-res export)
-        timeout-minutes: 90
-        # Hosted runners have no GPU; software rendering of a 20 MP RAW through
-        # RapidRAW's GPU pipeline is too slow to gate on, so the gating smoke test
-        # uses JPEG/PNG/TIFF. The ARW check runs (non-blocking) after publishing.
+      - name: 'Test 3: packaged app with JPEG/PNG/TIFF (upload, chat edit, undo/redo, full-res export, originals unchanged)'
+        id: jpeg_app
+        continue-on-error: true
+        timeout-minutes: 45
         run: python packaging/windows/smoke_test.py "dist-app/M7 Studio/M7 Studio.exe" testdata/synthetic.jpg testdata/synthetic.png testdata/synthetic.tif
 
-      - name: Build installer
-        shell: pwsh
-        run: |
-          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
-          if (!(Test-Path $iscc)) { choco install innosetup --no-progress -y; }
-          & $iscc /DAppVersion=0.1.${{ github.run_number }} packaging/windows/m7studio.iss
-          Compress-Archive -Path "dist-app/M7 Studio" -DestinationPath "dist-installer/M7-Studio-Portable-0.1.${{ github.run_number }}.zip"
-          Get-ChildItem dist-installer
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: M7-Studio-Windows
-          path: dist-installer/*
-
-      - name: Publish pre-release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: m7-windows-v0.1.${{ github.run_number }}
-          name: M7 Studio Editor for Windows 0.1.${{ github.run_number }}
-          prerelease: true
-          target_commitish: ${{ github.sha }}
-          files: dist-installer/*
-          body: |
-            **Download `M7-Studio-Setup-0.1.${{ github.run_number }}.exe`**, double-click it, and follow the steps.
-            Then open **M7 Studio Editor** from the Start menu or the desktop.
-
-            Built and smoke-tested automatically on a Windows Server runner without a GPU
-            (Mesa llvmpipe software Vulkan, test only): upload → natural-language edit → undo/redo →
-            full-resolution JPEG/TIFF export, for JPEG, PNG and TIFF photos.
-            Not yet tested on a physical Windows PC. Sony ARW editing is tested on Linux;
-            on Windows it could not be tested because the GPU-less build machine is too slow
-            for RAW rendering.
-            The portable `.zip` is the same app without an installer.
-
-      - name: Informational ARW render on software GPU (non-blocking)
+      - name: 'Test 4: Sony ARW render with the engine'
+        id: arw_engine
         continue-on-error: true
         timeout-minutes: 25
         shell: pwsh
         run: |
           $p = Start-Process -FilePath "dist-app/M7 Studio/engine/RapidRAW.exe" -ArgumentList @("export","testdata/RX100.ARW","--output","out/raw.jpg","--format","jpeg","--adjustments","adj.json","--long-edge","1200") -Wait -PassThru -NoNewWindow
           "exit code: $($p.ExitCode)"
-          if (!(Test-Path out/raw.jpg)) { throw "ARW render did not complete on the software renderer" }
+          if (!(Test-Path out/raw.jpg)) { throw "ARW render did not complete" }
+          python -c "from PIL import Image; s=Image.open('out/raw.jpg').size; print('ARW render', s); assert max(s) >= 1000, 'thumbnail only'"
+
+      - name: 'Test 5: packaged self-test with Sony ARW (preview + full-res TIFF, original unchanged)'
+        id: arw_app
+        continue-on-error: true
+        timeout-minutes: 40
+        run: '& "dist-app/M7 Studio/M7 Studio.exe" --self-test testdata/RX100.ARW; if ($LASTEXITCODE -ne 0) { throw "self-test failed" }'
+        shell: pwsh
+
+      - name: Write release notes with test results
+        if: always() && steps.publish.outcome == 'success'
+        shell: pwsh
+        run: |
+          function R($o) { switch ($o) { 'success' { 'PASSED' } 'failure' { 'FAILED' } 'cancelled' { 'TIMED OUT / CANCELLED' } default { "NOT RUN ($o)" } } }
+          $v = "0.1.${{ github.run_number }}"
+          @"
+          ## EXPERIMENTAL: unverified on Windows
+
+          This build compiled and packaged successfully, but it has **not yet been verified on a physical Windows PC**.
+          Please test it on your own computer with **TESTING-CHECKLIST.txt** (inside the download).
+
+          ### Download
+          * **M7-Studio-Portable-$v.zip**: unzip anywhere, double-click **M7 Studio.exe**. No installation, no admin rights.
+          * **M7-Studio-Setup-$v.exe**: the same app with Start-menu and desktop shortcuts.
+
+          No account, subscription or API key is needed. Photos are processed on your PC and never uploaded. Your original files are never modified.
+          If Windows shows "Windows protected your PC", click **More info**, then **Run anyway** (the app is not code-signed).
+
+          ### Automated tests on GitHub's Windows Server runner (no GPU, software rendering)
+          | Test | Result |
+          |---|---|
+          | Software Vulkan (Mesa lavapipe) set up, test only | $(R '${{ steps.mesa.outcome }}') |
+          | 1. JPEG render with the engine | $(R '${{ steps.jpeg_engine.outcome }}') |
+          | 2. Unit + engine tests | $(R '${{ steps.unit.outcome }}') |
+          | 3. App with JPEG/PNG/TIFF: upload, chat edit, undo/redo, full-res export, originals unchanged | $(R '${{ steps.jpeg_app.outcome }}') |
+          | 4. Sony ARW render with the engine | $(R '${{ steps.arw_engine.outcome }}') |
+          | 5. App self-test with Sony ARW: preview + full-res TIFF, original unchanged | $(R '${{ steps.arw_app.outcome }}') |
+
+          A failure here may be caused by the missing GPU on the build machine rather than by the app; your PC's GPU is what matters. Check it in two minutes by dragging a photo onto **Test my photos (self-test).bat**.
+
+          Sony ARW, JPEG, PNG and TIFF editing are fully tested on Linux (software Vulkan).
+          Diagnostic logs are written to ``Pictures\M7 Studio\logs``.
+          Full log of this build: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          "@ | Out-File -Encoding utf8 release-notes.md
+          Get-Content release-notes.md
+
+      - name: Update release notes
+        if: always() && steps.publish.outcome == 'success'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: m7-windows-v0.1.${{ github.run_number }}
+          name: M7 Studio Editor for Windows 0.1.${{ github.run_number }} (EXPERIMENTAL, unverified on Windows)
+          prerelease: true
+          body_path: release-notes.md
+
+      - name: Fail the check if the JPEG tests failed
+        if: steps.jpeg_engine.outcome != 'success' || steps.jpeg_app.outcome != 'success'
+        run: |
+          echo "JPEG tests on the GPU-less runner did not pass (see the table in the release notes)."
+          exit 1

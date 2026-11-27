@@ -1,5 +1,7 @@
 M7 STUDIO EDITOR - QUICK START
 ==============================
+EXPERIMENTAL BUILD: not yet verified on a physical Windows PC. Please follow
+TESTING-CHECKLIST.txt and report what works. Your original photos are never changed.
 
 1. Open "M7 Studio Editor" from the Start menu or the desktop shortcut.
    A small black window opens. Leave it open while you edit; closing it quits M7.
@@ -27,6 +29,15 @@ WHERE ARE MY FILES?
   Pictures\M7 Studio\exports   <- your finished photos
   Pictures\M7 Studio\uploads   <- read-only copies of what you uploaded
   Your original photos are never changed.
+
+CHECK THAT YOUR PC WORKS WITH M7
+  Drag a photo onto "Test my photos (self-test).bat". It renders the photo with your
+  graphics card and prints PASS/FAIL, the GPU used and the time taken.
+
+IF SOMETHING GOES WRONG
+  The error message in the chat says what failed. Full details are saved in
+  Pictures\M7 Studio\logs  (m7.log and engine-failure-*.txt). Updating the
+  graphics driver fixes most render errors.
 
 PRIVACY
   Everything runs on this computer. Photos are not uploaded anywhere.

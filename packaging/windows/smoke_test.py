@@ -5,6 +5,7 @@ browser uses: upload -> natural-language edit -> undo/redo -> full-res export.
 Usage: python smoke_test.py "<path to M7 Studio.exe>" <photo> [<photo> ...]
 """
 
+import hashlib
 import json
 import os
 import subprocess
@@ -41,6 +42,7 @@ try:
         raise SystemExit("server did not start")
     assert len(presets) == 10, presets
     print("presets:", len(presets))
+    originals = {p: hashlib.sha256(p.read_bytes()).hexdigest() for p in photos}
     downloads = []
     for photo in photos:
         t = time.time()
@@ -60,14 +62,23 @@ try:
             ex = call("/api/export", {"session": st["session"], "format": fmt})
             w, h = ex["size"]
             full_w, full_h = st["size"]
-            expect_w = round(min(full_w, full_h * 4 / 5))
-            assert h == full_h and abs(w - expect_w) <= 2, (ex, st["size"])
+            if full_w / full_h > 4 / 5:   # wider than 4:5: keep height, trim width
+                exp_w, exp_h = full_h * 4 / 5, full_h
+            else:                          # taller: keep width, trim height
+                exp_w, exp_h = full_w, full_w * 5 / 4
+            assert abs(w - exp_w) <= 2 and abs(h - exp_h) <= 2, (ex, st["size"])
             data = call(ex["download"])
             downloads.append(ex["download"].split("?")[0])
             print(f"  export {fmt}: {w}x{h}, {len(data) / 1e6:.1f} MB in {time.time() - t:.1f}s")
     assert len(set(downloads)) == len(downloads), "an export overwrote another"
     st = call("/api/upload", photos[0].read_bytes(), {"X-Filename": photos[0].name})
     print("re-upload of same file OK, history kept at step", st["step"])
+    for p, digest in originals.items():
+        assert hashlib.sha256(p.read_bytes()).hexdigest() == digest, f"original {p} changed!"
+    print("originals unchanged (SHA-256 verified)")
+    diag = call("/api/diagnostics")
+    assert diag["log_dir"] and "rendered" in diag["log_tail"], diag
+    print("diagnostics log:", diag["log_dir"])
     print("SMOKE TEST PASSED")
 finally:
     proc.terminate()

@@ -28,7 +28,24 @@ def _alert(msg: str):
         pass
 
 
+def _self_test(photos):
+    from m7 import diagnostics
+    print("M7 Studio Editor self-test: rendering with your graphics card. This can take a few minutes.")
+    print("Your photos are copied to a temporary folder first; the originals are never changed.\n")
+    ok, report = diagnostics.self_test(_workspace(), [Path(p) for p in photos])
+    print(report)
+    print(f"\nReport saved to: {_workspace() / 'logs' / 'self-test-report.txt'}")
+    if sys.stdin and sys.stdin.isatty():
+        try:
+            input("\nPress Enter to close...")
+        except EOFError:
+            pass
+    sys.exit(0 if ok else 1)
+
+
 def main():
+    if len(sys.argv) > 1 and sys.argv[1] == "--self-test":
+        return _self_test(sys.argv[2:])
     # Imported here so packaging problems surface in the alert below.
     from m7 import engine
     from m7.server import serve
@@ -46,7 +63,8 @@ def main():
     except KeyboardInterrupt:
         pass
     except Exception:
-        _alert("M7 Studio Editor stopped unexpectedly:\n\n" + traceback.format_exc())
+        _alert("M7 Studio Editor stopped unexpectedly:\n\n" + traceback.format_exc()
+               + f"\n\nLogs: {_workspace() / 'logs'}")
         sys.exit(1)
 
 

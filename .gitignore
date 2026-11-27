@@ -52,3 +52,4 @@ dist-installer/
 testdata/
 build/
 *.spec
+m7/_version.py

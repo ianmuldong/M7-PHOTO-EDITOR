@@ -122,19 +122,54 @@ def render(
             cmd = ["xvfb-run", "-a", "-s", "-screen 0 1280x720x24"] + cmd
 
         env = dict(os.environ)
-        env.setdefault("RUST_LOG", "warn")
+        env.setdefault("RUST_LOG", "info")  # includes the GPU adapter name
         # Large files on slow or software GPUs can exceed RapidRAW's default
         # 60 s GPU wait; allow up to 10 minutes before reporting an error.
         env.setdefault("RAPIDRAW_GPU_TIMEOUT_SECS", "600")
         start = time.time()
         extra = {"creationflags": 0x08000000} if os.name == "nt" else {}  # CREATE_NO_WINDOW
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, env=env,
-                              encoding="utf-8", errors="replace", **extra)
+        try:
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, env=env,
+                                  encoding="utf-8", errors="replace", **extra)
+        except subprocess.TimeoutExpired as e:
+            from . import diagnostics
+            out = e.stdout.decode("utf-8", "replace") if isinstance(e.stdout, bytes) else (e.stdout or "")
+            detail = diagnostics.record_failure(source, cmd, "timeout", out)
+            raise EngineError(
+                f"Photo processing for {source.name} took longer than {timeout // 60} minutes and was "
+                f"stopped. {diagnostics.explain('timed out before the submission')}\n"
+                "Your original photo was not changed."
+                + (f"\nDetails: {detail}" if detail else "")) from None
+        except OSError as e:
+            raise EngineError(f"Could not start the RapidRAW engine ({cmd[0]}): {e}") from None
         elapsed = time.time() - start
         log = (proc.stdout or "") + (proc.stderr or "")
         # Judge success by exit code + output file (a GUI-subsystem build on
         # Windows may not forward console text).
         if proc.returncode != 0 or "export failed" in log.lower() or not tmp_out.exists():
-            raise EngineError(f"RapidRAW export failed (exit {proc.returncode}):\n{log[-4000:]}")
+            from . import diagnostics
+            detail = diagnostics.record_failure(source, cmd, proc.returncode, log)
+            raise EngineError(
+                f"Photo processing failed for {source.name}. {diagnostics.explain(log)}\n"
+                f"Your original photo was not changed."
+                + (f"\nFull details were saved to: {detail}" if detail else "")
+                + f"\n\nRapidRAW output (exit {proc.returncode}):\n{log[-1500:]}")
+        if source.suffix.lower() in RAW_EXTENSIONS and (long_edge is None or long_edge > 800):
+            # A damaged or unsupported RAW can fall back to its tiny embedded
+            # thumbnail; never pass that off as a real edit.
+            from PIL import Image
+            with Image.open(tmp_out) as im:
+                got = max(im.size)
+            if got < 640:
+                from . import diagnostics
+                detail = diagnostics.record_failure(source, cmd, f"thumbnail-only ({got}px)", log)
+                raise EngineError(
+                    f"The RAW data in {source.name} could not be decoded (only a {got}-pixel embedded "
+                    "thumbnail was readable). The file may be incomplete or damaged, or the camera "
+                    "may be unsupported. Your original photo was not changed."
+                    + (f"\nDetails: {detail}" if detail else ""))
         shutil.move(str(tmp_out), str(output))
+    from . import diagnostics
+    diagnostics.log.info("rendered %s -> %s (%s, %.1fs, GPU: %s)", source.name, output.name, fmt,
+                         elapsed, diagnostics.gpu_adapter(log) or "?")
     return RenderResult(output=output, seconds=elapsed, log=log)

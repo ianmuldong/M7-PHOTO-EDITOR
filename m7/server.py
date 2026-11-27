@@ -18,7 +18,7 @@ import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from . import engine, nl
+from . import diagnostics, engine, nl
 from . import spec as m7spec
 from .session import DEFAULT_WORKSPACE, Session, sha256
 
@@ -89,6 +89,14 @@ def make_handler(app: App):
                 return self._file(WEB / "index.html")
             if u.path == "/api/presets":
                 return self._json(m7spec.list_presets())
+            if u.path == "/api/diagnostics":
+                d = diagnostics.log_dir()
+                tail = ""
+                if d and (d / "m7.log").exists():
+                    tail = "\n".join((d / "m7.log").read_text(encoding="utf-8", errors="replace")
+                                     .splitlines()[-40:])
+                return self._json({"version": diagnostics.VERSION, "log_dir": str(d),
+                                   "engine": str(engine.find_binary()), "log_tail": tail})
             if u.path.startswith("/files/"):
                 rel = urllib.parse.unquote(u.path[len("/files/"):])
                 p = (app.workspace / rel).resolve()
@@ -176,10 +184,14 @@ def make_handler(app: App):
                                        "size": size, "seconds": round(res.seconds, 1)})
                 return self._json({"error": "not found"}, 404)
             except (engine.EngineError, m7spec.SpecError, KeyError, ValueError) as e:
+                diagnostics.log.warning("%s failed: %s", u.path, str(e).splitlines()[0] if str(e) else e)
                 return self._json({"error": str(e)}, 400)
             except Exception as e:
                 traceback.print_exc()
-                return self._json({"error": f"{type(e).__name__}: {e}"}, 500)
+                diagnostics.log.exception("%s crashed", u.path)
+                return self._json({"error": f"Unexpected error ({type(e).__name__}: {e}). "
+                                            f"Your original photo was not changed. Log folder: "
+                                            f"{diagnostics.log_dir()}"}, 500)
 
     return H
 
@@ -187,6 +199,8 @@ def make_handler(app: App):
 def serve(workspace: Path, port: int = 7777, open_browser: bool = False):
     workspace = Path(workspace).expanduser()
     workspace.mkdir(parents=True, exist_ok=True)
+    logs = diagnostics.setup_logging(workspace)
+    print(f"Logs: {logs}")
     engine.find_binary()  # fail fast with a clear message
     srv = None
     for p in range(port, port + 20):

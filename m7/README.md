@@ -32,25 +32,33 @@ needs no Claude and no internet.
 
 ## 2. Installation
 
-### Windows: no coding needed
+### Windows: no coding needed (EXPERIMENTAL build)
 
-1. Open the repository's **Releases** page on GitHub
+> The Windows build compiles and packages automatically, but it has **not yet been verified
+> on a physical Windows PC**. GitHub's build machines have no GPU, so their render tests
+> use software rendering; each release lists exactly which of those tests passed.
+
+1. Open the repository's **Releases** page
    (`https://github.com/ianmuldong/M7-PHOTO-EDITOR/releases`) and pick the newest
-   **"M7 Studio Editor for Windows"** release.
-2. Download **`M7-Studio-Setup-0.1.N.exe`**.
-3. Double-click it. If Windows shows _"Windows protected your PC"_, click **More info → Run anyway**.
-   This happens because the app is not code-signed. The installer needs no administrator rights.
-4. Click through the installer. At the end, keep _"Start M7 Studio Editor now"_ ticked.
-5. From then on, open **M7 Studio Editor** from the Start menu or the desktop icon.
-   A small black window opens (leave it open; close it to quit), and your browser opens the editor.
+   **"M7 Studio Editor for Windows … (EXPERIMENTAL)"** release.
+2. Easiest: download **`M7-Studio-Portable-0.1.N.zip`**, right-click → _Extract All_, open the
+   folder and double-click **`M7 Studio.exe`**. No installation or admin rights.
+   Or download **`M7-Studio-Setup-0.1.N.exe`** for Start-menu and desktop shortcuts.
+3. If Windows shows _"Windows protected your PC"_, click **More info → Run anyway**
+   (the app is not code-signed).
+4. A small black window opens (leave it open; close it to quit) and your browser opens the editor.
+5. To check your PC in two minutes, drag a photo onto **`Test my photos (self-test).bat`**.
+   It renders the photo with your GPU and prints PASS/FAIL, the GPU name and the timing.
+   Then work through **`TESTING-CHECKLIST.txt`** (both files are in the app folder).
 
-Your finished photos are saved in `Pictures\M7 Studio\exports`. Uninstall it like any app,
-from _Settings → Apps_.
+Finished photos are saved in `Pictures\M7 Studio\exports`. Logs are in
+`Pictures\M7 Studio\logs`: `m7.log`, one `engine-failure-*.txt` per failed render (full
+engine output, GPU name) and `self-test-report.txt`. Error messages in the chat say what
+went wrong in plain language and where the details were saved.
 
-The installer is built automatically by `.github/workflows/m7-windows.yml` on a Windows
-runner. The same workflow smoke-tests the packaged app (upload → edit → undo/redo →
-full-resolution export) before publishing. The portable `.zip` on the release is the
-same app without an installer.
+Built by `.github/workflows/m7-windows.yml`: build → package → publish the experimental
+pre-release → JPEG tests and Sony ARW tests as separate steps → release notes updated with
+each result.
 
 ### From source (Linux / macOS / developers)
 
@@ -116,8 +124,10 @@ returned as a JPEG plus a 16-bit TIFF, together with its parameters.
 **Important limitation:** chat attachments reach the session **downscaled with their camera
 metadata removed**. The test photo arrived as a 1502×2000 JPEG. "Full resolution" in chat
 therefore means the resolution that was received. For true camera-resolution edits, and for
-RAW/ARW files, use the Windows app, or add the original files to the repository and ask
-Claude to edit them there.
+RAW/ARW files, use the local app. **Do not add private photos to this repository: it is
+public.** A private repository just for photos would work (Claude can pull the originals,
+edit them at full resolution and send the results back). Another option, not yet tested, is
+attaching the photo as a `.zip` file so it is not downscaled.
 
 ### CLI
 
@@ -226,7 +236,10 @@ cores, no GPU. The test images were real public Sony RAW samples: a DSC-RX100
 | In-conversation edit (Claude Code)                             | ✅ tested     | real attached photo → graded, masked, exported JPEG + 16-bit TIFF returned in chat (attachments arrive downscaled, without EXIF)      |
 | Local chat web app                                             | ✅ tested     | Playwright: upload ARW → chat edits → undo/redo → full-res download                                                                   |
 | Desktop RapidRAW GUI                                           | ➖ unchanged  | not run in the container (no display)                                                                                                 |
-| Windows / macOS                                                | ➖ not tested | the M7 Python code is cross-platform; engine builds follow RapidRAW's normal process                                                  |
+| Diagnostics: logs, plain-language errors, `--self-test`        | ✅ tested     | Linux: self-test passes on JPEG + 61 MP ARW; truncated ARW gives a clear error + failure log instead of a 160 px thumbnail            |
+| Windows build + packaging                                      | ✅ CI         | engine, launcher, installer and portable zip build on GitHub's Windows runner                                                         |
+| Windows rendering                                              | ⚠️ unverified | GPU-less runner: WARP never finished a render; Mesa software-Vulkan results are listed on each release. Not yet run on a real PC      |
+| macOS                                                          | ➖ not tested | the M7 Python code is cross-platform; engine builds follow RapidRAW's normal process                                                  |
 
 Timings on the CPU-only sandbox: a 1600 px preview takes about 10 s for 20 MP and about
 60 s for 61 MP. A full-resolution export takes about 10–15 s for 20 MP and about 68 s for
