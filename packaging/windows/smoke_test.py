@@ -19,7 +19,7 @@ proc = subprocess.Popen([str(exe)], stdout=subprocess.PIPE, stderr=subprocess.ST
 base = "http://127.0.0.1:7777"
 
 
-def call(path, body=None, headers=None, timeout=900):
+def call(path, body=None, headers=None, timeout=3600):
     data = body if isinstance(body, (bytes, type(None))) else json.dumps(body).encode()
     req = urllib.request.Request(base + path, data=data, headers=headers or {"Content-Type": "application/json"},
                                  method="POST" if data is not None else "GET")

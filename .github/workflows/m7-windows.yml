@@ -23,11 +23,14 @@ concurrency:
 jobs:
   windows:
     runs-on: windows-latest
-    timeout-minutes: 150
+    timeout-minutes: 300
     env:
       # Faster than the upstream fat-LTO release profile; same code paths.
       CARGO_PROFILE_RELEASE_LTO: thin
       CARGO_PROFILE_RELEASE_CODEGEN_UNITS: '16'
+      # Hosted runners have no GPU; RapidRAW falls back to the (slow) WARP
+      # software renderer, so allow long GPU waits during the tests.
+      RAPIDRAW_GPU_TIMEOUT_SECS: '1800'
     steps:
       - uses: actions/checkout@v5
 

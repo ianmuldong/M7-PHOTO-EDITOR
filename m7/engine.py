@@ -123,6 +123,9 @@ def render(
 
         env = dict(os.environ)
         env.setdefault("RUST_LOG", "warn")
+        # Large files on slow or software GPUs can exceed RapidRAW's default
+        # 60 s GPU wait; allow up to 10 minutes before reporting an error.
+        env.setdefault("RAPIDRAW_GPU_TIMEOUT_SECS", "600")
         start = time.time()
         extra = {"creationflags": 0x08000000} if os.name == "nt" else {}  # CREATE_NO_WINDOW
         proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, env=env,
