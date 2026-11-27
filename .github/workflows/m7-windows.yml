@@ -154,6 +154,13 @@ jobs:
             Copy-Item $dll.FullName "$sw\bin\"
             "$sw\bin" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
           }
+          # The Vulkan loader ignores VK_DRIVER_FILES for elevated processes (CI runs
+          # as administrator), so register the ICD the way Mesa's installer does.
+          $key = "HKLM:\SOFTWARE\Khronos\Vulkan\Drivers"
+          New-Item -Path $key -Force | Out-Null
+          New-ItemProperty -Path $key -Name $icd.FullName -Value 0 -PropertyType DWord -Force | Out-Null
+          Get-Content $icd.FullName
+          Get-ChildItem $icd.DirectoryName | Select-Object Name, Length | Format-Table | Out-String | Write-Output
           "WGPU_BACKEND=vulkan" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
           "VK_DRIVER_FILES=$($icd.FullName)" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
           "VK_ICD_FILENAMES=$($icd.FullName)" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
@@ -163,6 +170,8 @@ jobs:
         continue-on-error: true
         timeout-minutes: 15
         shell: pwsh
+        env:
+          VK_LOADER_DEBUG: error,warn,driver
         run: |
           $p = Start-Process -FilePath "dist-app/M7 Studio/engine/RapidRAW.exe" -ArgumentList @("export","testdata/synthetic.jpg","--output","out/engine.jpg","--format","jpeg","--adjustments","adj.json") -Wait -PassThru -NoNewWindow
           "exit code: $($p.ExitCode)"
@@ -205,7 +214,7 @@ jobs:
         if: always() && steps.publish.outcome == 'success'
         shell: pwsh
         run: |
-          function R($o) { switch ($o) { 'success' { 'PASSED' } 'failure' { 'FAILED' } 'cancelled' { 'TIMED OUT / CANCELLED' } default { "NOT RUN ($o)" } } }
+          function Res($o) { switch ($o) { 'success' { 'PASSED' } 'failure' { 'FAILED' } 'cancelled' { 'TIMED OUT / CANCELLED' } default { "NOT RUN ($o)" } } }
           $v = "0.1.${{ github.run_number }}"
           @"
           ## EXPERIMENTAL: unverified on Windows
@@ -223,12 +232,12 @@ jobs:
           ### Automated tests on GitHub's Windows Server runner (no GPU, software rendering)
           | Test | Result |
           |---|---|
-          | Software Vulkan (Mesa lavapipe) set up, test only | $(R '${{ steps.mesa.outcome }}') |
-          | 1. JPEG render with the engine | $(R '${{ steps.jpeg_engine.outcome }}') |
-          | 2. Unit + engine tests | $(R '${{ steps.unit.outcome }}') |
-          | 3. App with JPEG/PNG/TIFF: upload, chat edit, undo/redo, full-res export, originals unchanged | $(R '${{ steps.jpeg_app.outcome }}') |
-          | 4. Sony ARW render with the engine | $(R '${{ steps.arw_engine.outcome }}') |
-          | 5. App self-test with Sony ARW: preview + full-res TIFF, original unchanged | $(R '${{ steps.arw_app.outcome }}') |
+          | Software Vulkan (Mesa lavapipe) set up, test only | $(Res '${{ steps.mesa.outcome }}') |
+          | 1. JPEG render with the engine | $(Res '${{ steps.jpeg_engine.outcome }}') |
+          | 2. Unit + engine tests | $(Res '${{ steps.unit.outcome }}') |
+          | 3. App with JPEG/PNG/TIFF: upload, chat edit, undo/redo, full-res export, originals unchanged | $(Res '${{ steps.jpeg_app.outcome }}') |
+          | 4. Sony ARW render with the engine | $(Res '${{ steps.arw_engine.outcome }}') |
+          | 5. App self-test with Sony ARW: preview + full-res TIFF, original unchanged | $(Res '${{ steps.arw_app.outcome }}') |
 
           A failure here may be caused by the missing GPU on the build machine rather than by the app; your PC's GPU is what matters. Check it in two minutes by dragging a photo onto **Test my photos (self-test).bat**.
 
@@ -248,7 +257,7 @@ jobs:
           body_path: release-notes.md
 
       - name: Fail the check if the JPEG tests failed
-        if: steps.jpeg_engine.outcome != 'success' || steps.jpeg_app.outcome != 'success'
+        if: always() && (steps.jpeg_engine.outcome != 'success' || steps.jpeg_app.outcome != 'success')
         run: |
           echo "JPEG tests on the GPU-less runner did not pass (see the table in the release notes)."
           exit 1
