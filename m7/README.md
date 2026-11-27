@@ -32,7 +32,29 @@ needs no Claude and no internet.
 
 ## 2. Installation
 
-### Requirements
+### Windows: no coding needed
+
+1. Open the repository's **Releases** page on GitHub
+   (`https://github.com/ianmuldong/M7-PHOTO-EDITOR/releases`) and pick the newest
+   **"M7 Studio Editor for Windows"** release.
+2. Download **`M7-Studio-Setup-0.1.N.exe`**.
+3. Double-click it. If Windows shows _"Windows protected your PC"_, click **More info → Run anyway**.
+   This happens because the app is not code-signed. The installer needs no administrator rights.
+4. Click through the installer. At the end, keep _"Start M7 Studio Editor now"_ ticked.
+5. From then on, open **M7 Studio Editor** from the Start menu or the desktop icon.
+   A small black window opens (leave it open; close it to quit), and your browser opens the editor.
+
+Your finished photos are saved in `Pictures\M7 Studio\exports`. Uninstall it like any app,
+from _Settings → Apps_.
+
+The installer is built automatically by `.github/workflows/m7-windows.yml` on a Windows
+runner. The same workflow smoke-tests the packaged app (upload → edit → undo/redo →
+full-resolution export) before publishing. The portable `.zip` on the release is the
+same app without an installer.
+
+### From source (Linux / macOS / developers)
+
+#### Requirements
 
 - Rust toolchain (the repo pins 1.98 in `src-tauri/rust-toolchain.toml`; rustup installs it automatically).
 - Node 20+ (only to build the RapidRAW desktop UI).
@@ -47,7 +69,7 @@ needs no Claude and no internet.
   ```
   macOS: Xcode command line tools. Windows: MSVC build tools + WebView2. These follow RapidRAW's normal requirements.
 
-### Build the engine
+#### Build the engine
 
 ```bash
 npm ci && npm run build                     # RapidRAW UI (embedded in the binary)
@@ -77,6 +99,21 @@ python3 -m m7.server                 # open http://127.0.0.1:7777
 4. Export a full-resolution JPEG or a 16-bit TIFF.
 
 The workspace (sessions, uploads, exports) is `~/M7Studio`.
+
+### Inside a Claude conversation (Claude Code)
+
+1. Attach a photo to the conversation (or put it in the repository folder).
+2. Describe the look you want.
+3. Claude runs `m7 open`, writes a structured change, runs `m7 apply`, and sends you the
+   before/after preview.
+4. Ask for further changes. Each one is a history step, and you can undo or redo.
+5. Claude runs `m7 export` and sends the **full-resolution** file back into the chat.
+
+Verified so far: the processing and the delivery back to you. A 5472×3648 JPEG
+(10.6 MB, with EXIF) was sent into the chat. Not yet verified: where an attached photo
+lands inside the session (the expected folder is `/mnt/user-data/uploads`) and the
+upload size limit for large RAW files. Very large outputs such as 60+ MB 16-bit TIFFs
+may be impractical to send through chat. Use the Windows app for those.
 
 ### CLI
 
