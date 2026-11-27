@@ -9,14 +9,14 @@ the M7 CLI.
 
 1. Put the photo somewhere in the session, for example `photos/DSC01234.ARW`. You can
    upload it to a cloud session or keep it in a local folder.
-2. Ask for the edit, for example: *"Make this look like a Nike ad but keep skin natural, crop 4:5."*
+2. Ask for the edit, for example: _"Make this look like a Nike ad but keep skin natural, crop 4:5."_
 3. Claude runs:
    ```bash
    python3 -m m7 open photos/DSC01234.ARW                  # neutral develop + analysis
    python3 -m m7 apply photos/DSC01234.ARW change.json --note "nike look, 4:5"
    ```
    The command prints the paths of the preview and the side-by-side before/after.
-4. Claude shows you `compare-NNN.jpg`. You ask for more changes (*"less contrast, warmer"*),
+4. Claude shows you `compare-NNN.jpg`. You ask for more changes (_"less contrast, warmer"_),
    and each one becomes a new history step.
 5. `python3 -m m7 undo|redo|history <photo>` moves through the history.
 6. `python3 -m m7 export <photo> out/final.tiff` (or `.jpg` or `.png`) exports at full resolution.
@@ -25,19 +25,25 @@ the M7 CLI.
 
 ```json
 {
-  "presets": [{"name": "nike-commercial", "strength": 0.8}],
-  "add":     {"contrast": -5, "temperature": 6, "hsl": {"oranges": {"saturation": -4}}},
-  "set":     {"monochromeEnabled": false},
-  "crop":    {"aspect": "4:5"},
+  "presets": [{ "name": "nike-commercial", "strength": 0.8 }],
+  "add": { "contrast": -5, "temperature": 6, "hsl": { "oranges": { "saturation": -4 } } },
+  "set": { "monochromeEnabled": false },
+  "crop": { "aspect": "4:5" },
   "straighten": -1.2,
   "lensCorrection": "auto",
   "masks": [
-    {"type": "radial", "centerX": 0.48, "centerY": 0.4, "radiusX": 0.2, "radiusY": 0.3,
-     "feather": 0.7, "adjustments": {"exposure": 0.3}},
-    {"type": "linear", "fromX": 0.5, "fromY": 0, "toX": 0.5, "toY": 0.4,
-     "adjustments": {"exposure": -0.4}},
-    {"type": "subject", "adjustments": {"exposure": 0.25}},
-    {"type": "background", "adjustments": {"saturation": -30}}
+    {
+      "type": "radial",
+      "centerX": 0.48,
+      "centerY": 0.4,
+      "radiusX": 0.2,
+      "radiusY": 0.3,
+      "feather": 0.7,
+      "adjustments": { "exposure": 0.3 }
+    },
+    { "type": "linear", "fromX": 0.5, "fromY": 0, "toX": 0.5, "toY": 0.4, "adjustments": { "exposure": -0.4 } },
+    { "type": "subject", "adjustments": { "exposure": 0.25 } },
+    { "type": "background", "adjustments": { "saturation": -30 } }
   ]
 }
 ```
