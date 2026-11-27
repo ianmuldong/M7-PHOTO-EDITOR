@@ -1,0 +1,56 @@
+M7 STUDIO EDITOR - MANUAL TEST CHECKLIST (EXPERIMENTAL WINDOWS BUILD)
+====================================================================
+This build has NOT yet been verified on a real Windows PC. Please work through
+this list on your own computer and note PASS / FAIL for each line. If a step
+fails, send the files from  Pictures\M7 Studio\logs  (see "If something fails").
+
+Before you start: make a backup copy of the test photos (good practice; M7 never
+writes to your originals, and step C checks that).
+
+A. START-UP
+[ ] A1  Unzip the portable zip (or run the Setup .exe). Windows may say
+        "Windows protected your PC": click More info -> Run anyway.
+[ ] A2  Double-click "M7 Studio.exe" (or the Start-menu shortcut).
+        A black window opens and your browser shows the M7 editor.
+[ ] A3  The ten preset buttons appear under the chat box.
+
+B. AUTOMATIC SELF-TEST (uses your GPU)
+[ ] B1  Drag ONE JPEG photo onto "Test my photos (self-test).bat".
+        Wait for "RESULT: ALL PASSED". Note the GPU name shown.
+[ ] B2  Drag ONE Sony ARW photo onto the same .bat file. Note the time taken.
+        (Test JPEG and ARW separately so a RAW problem cannot hide a JPEG one.)
+        The report is saved in Pictures\M7 Studio\logs\self-test-report.txt
+
+C. JPEG WORKFLOW (in the browser)
+[ ] C1  Upload photo -> pick a JPEG. A preview appears within ~30 s.
+[ ] C2  Type: cinematic sports at 80%      -> AFTER image changes.
+[ ] C3  Type: lift the shadows a bit and make it warmer
+[ ] C4  Type: darken the background        -> background darker, subject untouched
+        (this uses a radial mask; AI subject masks are not tested yet).
+[ ] C5  Type: crop 4:5    -> the picture is cropped (side-by-side view appears).
+[ ] C6  Click Undo, then Redo. Click a line in History to jump back.
+[ ] C7  Drag the yellow line to compare BEFORE/AFTER (before the crop step).
+[ ] C8  Export JPEG and Export 16-bit TIFF. Open both from Pictures\M7 Studio\exports:
+        full resolution (right-click -> Properties -> Details), faces, logos and
+        clothing unchanged in shape, no added or removed details.
+[ ] C9  Your original JPEG still opens and its "Date modified" has not changed.
+
+D. SONY ARW WORKFLOW (repeat C1-C9 with an ARW file)
+[ ] D1  Upload an ARW. First opening takes longer (full RAW develop).
+[ ] D2-D8  as C2-C8. Exported size should equal the camera's full resolution
+        (e.g. 6000x4000 for 24 MP), minus any crop you asked for.
+[ ] D9  Original ARW unchanged (Date modified, file size identical).
+
+E. ERROR HANDLING
+[ ] E1  Rename a .txt file to broken.ARW and upload it: you should get a clear
+        error message (not a crash), and a new engine-failure-*.txt in the logs folder.
+[ ] E2  Close the black window: the editor stops. Re-open: earlier photos and their
+        history are still there when you upload the same file again.
+
+IF SOMETHING FAILS
+  * Copy the error message shown in the chat.
+  * Zip the folder  Pictures\M7 Studio\logs  (m7.log, engine-failure-*.txt,
+    self-test-report.txt). These contain file names and your GPU model, but no photos.
+  * Note your GPU (Settings -> System -> Display -> Advanced display) and Windows version.
+  * Common fixes: update the graphics driver from Intel/AMD/NVIDIA; close games or
+    video editors; make sure at least 4 GB of RAM is free for large RAW files.

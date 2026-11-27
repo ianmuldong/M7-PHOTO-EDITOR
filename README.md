@@ -17,6 +17,11 @@
 
 </div>
 
+> **M7 Studio Editor fork.** This repository adds a natural-language editing layer
+> (`m7/`) on top of RapidRAW's engine: chat-driven edits, 10 signature presets,
+> undo/redo, batch processing and a local chat app. See **[m7/README.md](m7/README.md)**.
+> RapidRAW and these additions are licensed under AGPL-3.0.
+
 # RapidRAW
 
 > A beautiful, non-destructive, and GPU-accelerated RAW image editor built with performance in mind.

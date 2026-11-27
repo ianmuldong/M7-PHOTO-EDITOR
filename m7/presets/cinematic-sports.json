@@ -1,0 +1,68 @@
+{
+  "title": "Cinematic sports",
+  "description": "Teal shadows, warm highlights, controlled highlights and punchy mid-contrast for game-day action. Skin tones protected.",
+  "adjustments": {
+    "contrast": 25,
+    "highlights": -35,
+    "shadows": 20,
+    "whites": 8,
+    "blacks": -15,
+    "clarity": 20,
+    "structure": 10,
+    "vibrance": 12,
+    "saturation": -8,
+    "sharpness": 30,
+    "vignetteAmount": -15,
+    "curves": {
+      "luma": [
+        {
+          "x": 0,
+          "y": 0
+        },
+        {
+          "x": 64,
+          "y": 56
+        },
+        {
+          "x": 128,
+          "y": 128
+        },
+        {
+          "x": 192,
+          "y": 200
+        },
+        {
+          "x": 255,
+          "y": 255
+        }
+      ]
+    },
+    "colorGrading": {
+      "shadows": {
+        "hue": 200,
+        "saturation": 22,
+        "luminance": -5
+      },
+      "highlights": {
+        "hue": 38,
+        "saturation": 16,
+        "luminance": 0
+      },
+      "blending": 50,
+      "balance": 0
+    },
+    "hsl": {
+      "oranges": {
+        "saturation": 5,
+        "luminance": 5
+      },
+      "blues": {
+        "saturation": -15
+      },
+      "aquas": {
+        "hue": -10,
+        "saturation": -10
+      }
+    }
+  }
+}

@@ -1,0 +1,48 @@
+M7 STUDIO EDITOR - QUICK START
+==============================
+EXPERIMENTAL BUILD: not yet verified on a physical Windows PC. Please follow
+TESTING-CHECKLIST.txt and report what works. Your original photos are never changed.
+
+1. Open "M7 Studio Editor" from the Start menu or the desktop shortcut.
+   A small black window opens. Leave it open while you edit; closing it quits M7.
+   Your web browser opens the editor automatically (address: http://127.0.0.1:7777).
+   If the browser does not open, type that address into it yourself.
+
+2. Click "Upload photo" (or drag a photo onto the page).
+   Supported: Sony ARW (and other RAW files), JPEG, PNG, TIFF.
+   Big RAW files take a little while to open the first time.
+
+3. Type what you want in the box at the bottom left, for example:
+     cinematic sports at 80%
+     lift the shadows a bit and make it warmer
+     crop 4:5
+     high contrast black and white
+     undo
+   Or click one of the ten M7 preset buttons.
+
+4. Drag the yellow line over the photo to compare BEFORE and AFTER.
+   Click any line in the History list to go back to that version.
+
+5. Click "Export JPEG" or "Export 16-bit TIFF" to save the full-resolution result.
+
+WHERE ARE MY FILES?
+  Pictures\M7 Studio\exports   <- your finished photos
+  Pictures\M7 Studio\uploads   <- read-only copies of what you uploaded
+  Your original photos are never changed.
+
+CHECK THAT YOUR PC WORKS WITH M7
+  Drag a photo onto "Test my photos (self-test).bat". It renders the photo with your
+  graphics card and prints PASS/FAIL, the GPU used and the time taken.
+
+IF SOMETHING GOES WRONG
+  The error message in the chat says what failed. Full details are saved in
+  Pictures\M7 Studio\logs  (m7.log and engine-failure-*.txt). Updating the
+  graphics driver fixes most render errors.
+
+PRIVACY
+  Everything runs on this computer. Photos are not uploaded anywhere.
+  (Optional AI masks and AI noise reduction download free models the first time
+  they are used. Those features have not been tested yet.)
+
+Windows may show "Windows protected your PC" because this app is not code-signed.
+Click "More info" and then "Run anyway".

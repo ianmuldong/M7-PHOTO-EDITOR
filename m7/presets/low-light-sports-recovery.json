@@ -1,0 +1,20 @@
+{
+  "title": "Low-light sports recovery",
+  "description": "Rescues dark, high-ISO action frames: lifts exposure and shadows, protects highlights, strong luma and colour noise reduction.",
+  "adjustments": {
+    "exposure": 0.6,
+    "contrast": 15,
+    "highlights": -40,
+    "shadows": 35,
+    "whites": 5,
+    "blacks": -10,
+    "clarity": 5,
+    "dehaze": 5,
+    "vibrance": 10,
+    "saturation": -5,
+    "lumaNoiseReduction": 45,
+    "colorNoiseReduction": 50,
+    "sharpness": 20,
+    "sharpnessThreshold": 25
+  }
+}

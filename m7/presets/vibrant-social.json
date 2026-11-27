@@ -1,0 +1,31 @@
+{
+  "title": "Vibrant social media",
+  "description": "Bright, colourful and punchy for phone screens, while keeping skin tones natural.",
+  "adjustments": {
+    "exposure": 0.1,
+    "contrast": 20,
+    "highlights": -25,
+    "shadows": 20,
+    "whites": 10,
+    "blacks": -10,
+    "vibrance": 35,
+    "saturation": 10,
+    "clarity": 15,
+    "dehaze": 8,
+    "sharpness": 30,
+    "hsl": {
+      "blues": {
+        "saturation": 15
+      },
+      "aquas": {
+        "saturation": 15
+      },
+      "greens": {
+        "saturation": 10
+      },
+      "oranges": {
+        "saturation": -5
+      }
+    }
+  }
+}

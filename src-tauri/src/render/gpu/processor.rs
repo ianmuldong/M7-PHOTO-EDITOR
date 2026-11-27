@@ -101,7 +101,7 @@ pub(crate) fn read_buffer<T>(
         .device
         .poll(wgpu::PollType::Wait {
             submission_index: None,
-            timeout: Some(std::time::Duration::from_secs(10)),
+            timeout: Some(gpu_wait_timeout(10)),
         })
         .map_err(|e| e.to_string())?;
     rx.recv()
@@ -162,7 +162,7 @@ pub(crate) fn read_texture_rows<T>(
     device
         .poll(wgpu::PollType::Wait {
             submission_index: None,
-            timeout: Some(std::time::Duration::from_secs(60)),
+            timeout: Some(gpu_wait_timeout(60)),
         })
         .map_err(|e| format!("Failed while polling mapped GPU buffer: {}", e))?;
     let map_result = rx
@@ -393,7 +393,7 @@ fn complete_analytics_readback(readback: AnalyticsReadback) {
 
     if let Err(e) = readback.device.poll(wgpu::PollType::Wait {
         submission_index: Some(readback.submission),
-        timeout: Some(std::time::Duration::from_secs(60)),
+        timeout: Some(gpu_wait_timeout(60)),
     }) {
         log::error!("Async analytics readback poll failed: {}", e);
         return;
@@ -2028,4 +2028,14 @@ pub struct DisplayTextures {
     pub working_texture: wgpu::Texture,
     pub output_texture: wgpu::Texture,
     pub output_texture_view: wgpu::TextureView,
+}
+
+/// GPU readback wait limit. `RAPIDRAW_GPU_TIMEOUT_SECS` can raise it for
+/// software renderers or very large images on slow GPUs; it never lowers it.
+pub(crate) fn gpu_wait_timeout(default_secs: u64) -> std::time::Duration {
+    let configured = std::env::var("RAPIDRAW_GPU_TIMEOUT_SECS")
+        .ok()
+        .and_then(|v| v.trim().parse::<u64>().ok())
+        .unwrap_or(0);
+    std::time::Duration::from_secs(default_secs.max(configured))
 }

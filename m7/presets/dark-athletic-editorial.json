@@ -1,0 +1,62 @@
+{
+  "title": "Dark athletic editorial",
+  "description": "Moody, low-key, desaturated editorial look with sculpted contrast and heavy vignette.",
+  "adjustments": {
+    "exposure": -0.3,
+    "contrast": 30,
+    "highlights": -25,
+    "shadows": -10,
+    "whites": 5,
+    "blacks": -30,
+    "clarity": 25,
+    "structure": 20,
+    "saturation": -25,
+    "vibrance": -5,
+    "vignetteAmount": -30,
+    "grainAmount": 10,
+    "sharpness": 30,
+    "curves": {
+      "luma": [
+        {
+          "x": 0,
+          "y": 0
+        },
+        {
+          "x": 64,
+          "y": 54
+        },
+        {
+          "x": 128,
+          "y": 128
+        },
+        {
+          "x": 192,
+          "y": 198
+        },
+        {
+          "x": 255,
+          "y": 255
+        }
+      ]
+    },
+    "colorGrading": {
+      "shadows": {
+        "hue": 215,
+        "saturation": 12,
+        "luminance": -8
+      },
+      "highlights": {
+        "hue": 40,
+        "saturation": 8,
+        "luminance": 0
+      },
+      "blending": 50,
+      "balance": -10
+    },
+    "hsl": {
+      "oranges": {
+        "saturation": 10
+      }
+    }
+  }
+}
