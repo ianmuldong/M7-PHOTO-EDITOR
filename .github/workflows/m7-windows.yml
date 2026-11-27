@@ -28,9 +28,9 @@ jobs:
       # Faster than the upstream fat-LTO release profile; same code paths.
       CARGO_PROFILE_RELEASE_LTO: thin
       CARGO_PROFILE_RELEASE_CODEGEN_UNITS: '16'
-      # Hosted runners have no GPU; RapidRAW falls back to the (slow) WARP
-      # software renderer, so allow long GPU waits during the tests.
-      RAPIDRAW_GPU_TIMEOUT_SECS: '1800'
+      # Hosted runners have no GPU; tests use a software renderer, so allow
+      # longer GPU waits than the defaults.
+      RAPIDRAW_GPU_TIMEOUT_SECS: '600'
     steps:
       - uses: actions/checkout@v5
 
@@ -90,7 +90,41 @@ jobs:
           Invoke-WebRequest -Uri "https://media.githubusercontent.com/media/sygslhy/image-io/HEAD/test/images/RAW_SONY_RX100.ARW" -OutFile testdata/RX100.ARW
           python -c "from PIL import Image; import numpy as np; y,x=np.mgrid[0:1200,0:1800]; a=np.stack([x/1800*200+20,y/1200*180+30,np.full_like(x,90.0)],-1).astype('uint8'); im=Image.fromarray(a); im.save('testdata/synthetic.jpg',quality=95); im.save('testdata/synthetic.png'); im.save('testdata/synthetic.tif')"
 
+      - name: Install software Vulkan for the GPU-less runner (test only)
+        # Windows' WARP (DX12) software adapter never finished even a 2 MP render
+        # (32 min). Mesa llvmpipe (free, MIT) is the software Vulkan driver that
+        # RapidRAW renders with in Linux testing. Used only for these CI tests; the
+        # packaged app is unchanged and uses the PC's real GPU.
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $sw = "$env:RUNNER_TEMP\swvk"
+          New-Item -ItemType Directory -Force $sw | Out-Null
+          gh release download --repo pal1000/mesa-dist-win --pattern "mesa3d-*-release-msvc.7z" --dir $sw
+          if ($LASTEXITCODE -ne 0) { throw "could not download Mesa for Windows" }
+          $archive = Get-ChildItem $sw -Filter "*.7z" | Select-Object -First 1
+          7z x $archive.FullName "-o$sw\mesa" -y | Out-Null
+          $icd = Get-ChildItem -Recurse "$sw\mesa" -Filter "lvp_icd*.json" | Where-Object { $_.FullName -match '\\x64\\' } | Select-Object -First 1
+          if (!$icd) { throw "lavapipe ICD not found in $($archive.Name)" }
+          "Mesa: $($archive.Name), ICD: $($icd.FullName)"
+          if (!(Test-Path "$env:WINDIR\System32\vulkan-1.dll")) {
+            "No Vulkan loader on the runner; building Khronos Vulkan-Loader (Apache-2.0)"
+            git clone --depth 1 https://github.com/KhronosGroup/Vulkan-Loader.git "$sw\loader-src"
+            cmake -S "$sw\loader-src" -B "$sw\loader-build" -DUPDATE_DEPS=ON -DBUILD_TESTS=OFF -A x64
+            cmake --build "$sw\loader-build" --config Release
+            $dll = Get-ChildItem -Recurse "$sw\loader-build" -Filter "vulkan-1.dll" | Select-Object -First 1
+            if (!$dll) { throw "Vulkan loader build produced no vulkan-1.dll" }
+            New-Item -ItemType Directory -Force "$sw\bin" | Out-Null
+            Copy-Item $dll.FullName "$sw\bin\"
+            "$sw\bin" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
+          }
+          "WGPU_BACKEND=vulkan" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          "VK_DRIVER_FILES=$($icd.FullName)" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          "VK_ICD_FILENAMES=$($icd.FullName)" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+
       - name: Test engine directly (Windows)
+        timeout-minutes: 20
         shell: pwsh
         run: |
           "{}" | Out-File -Encoding ascii adj.json
@@ -100,13 +134,15 @@ jobs:
           python -c "from PIL import Image; print('engine render', Image.open('out/engine.jpg').size)"
 
       - name: Unit and engine tests (Windows)
+        timeout-minutes: 40
         env:
           M7_RAPIDRAW_BIN: ${{ github.workspace }}\dist-app\M7 Studio\engine\RapidRAW.exe
         run: python -m unittest -v m7.tests.test_spec m7.tests.test_engine
 
       - name: Smoke test packaged app (upload, chat edit, undo/redo, full-res export)
-        # Hosted runners have no GPU; WARP software rendering cannot complete a
-        # 20 MP RAW through RapidRAW's GPU pipeline, so the gating smoke test
+        timeout-minutes: 90
+        # Hosted runners have no GPU; software rendering of a 20 MP RAW through
+        # RapidRAW's GPU pipeline is too slow to gate on, so the gating smoke test
         # uses JPEG/PNG/TIFF. The ARW check runs (non-blocking) after publishing.
         run: python packaging/windows/smoke_test.py "dist-app/M7 Studio/M7 Studio.exe" testdata/synthetic.jpg testdata/synthetic.png testdata/synthetic.tif
 
@@ -137,7 +173,7 @@ jobs:
             Then open **M7 Studio Editor** from the Start menu or the desktop.
 
             Built and smoke-tested automatically on a Windows Server runner without a GPU
-            (software rendering): upload → natural-language edit → undo/redo →
+            (Mesa llvmpipe software Vulkan, test only): upload → natural-language edit → undo/redo →
             full-resolution JPEG/TIFF export, for JPEG, PNG and TIFF photos.
             Not yet tested on a physical Windows PC. Sony ARW editing is tested on Linux;
             on Windows it could not be tested because the GPU-less build machine is too slow
