@@ -353,6 +353,19 @@ fn main() {
 
     fs::create_dir_all(&dest_dir).unwrap();
 
+    println!("cargo:rerun-if-env-changed=RAPIDRAW_SKIP_RUNTIME_DOWNLOADS");
+    if env::var_os("RAPIDRAW_SKIP_RUNTIME_DOWNLOADS").is_some_and(|v| v == "1") {
+        // Offline / sandboxed builds: skip bundling ONNX Runtime and FFmpeg.
+        // Photo decoding, adjustments and export still work; AI masks/denoise
+        // and video features are unavailable in the resulting binary.
+        println!(
+            "cargo:warning=RAPIDRAW_SKIP_RUNTIME_DOWNLOADS=1: building without ONNX Runtime and FFmpeg."
+        );
+        println!("cargo:rerun-if-changed=build.rs");
+        tauri_build::build();
+        return;
+    }
+
     let lib_paths: Vec<PathBuf> = runtime_libraries(&target_os, &target_arch)
         .into_iter()
         .map(|(download_filename, lib_name, expected_hash)| {
